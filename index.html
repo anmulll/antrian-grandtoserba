@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#7f1d1d">
+  <meta name="description" content="Aplikasi bersama untuk pencatatan observasi antrean empat kasir supermarket.">
+  <title>DES Cashier — Observasi Antrean Kasir</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">DES</div>
+      <div><div class="brand-title">DES Cashier</div><div class="brand-subtitle">Observasi antrean kasir supermarket</div></div>
+    </div>
+    <div class="topbar-right">
+      <span class="sync-badge" id="connection-badge"><span class="dot"></span> Menyiapkan koneksi</span>
+      <button class="btn btn-quiet hidden" id="logout-button" type="button">Keluar</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="setup-screen" class="panel setup-panel hidden">
+      <div class="setup-icon">!</div>
+      <p class="eyebrow">PENGATURAN AWAL</p>
+      <h1>Hubungkan aplikasi ke Supabase</h1>
+      <p>Aplikasi belum menemukan konfigurasi database. Isi <code>config.js</code> dengan Project URL dan publishable/anon key dari proyek Supabase, lalu deploy ulang.</p>
+      <p class="muted small">Jangan masukkan <code>service_role</code> key atau secret key ke file frontend.</p>
+    </section>
+
+    <section id="login-screen" class="login-layout hidden">
+      <div class="login-intro">
+        <p class="eyebrow">PROJECT PEMODELAN & SIMULASI</p>
+        <h1>Catat data di satu tempat. Akses dari perangkat kelompok.</h1>
+        <p>Masuk menggunakan akun anggota yang dibuat di Supabase. Data kedatangan, pilihan kasir, waktu pelayanan, dan panjang antrean akan tersimpan di database bersama.</p>
+        <div class="feature-list">
+          <div><span class="feature-check">✓</span><span>Sinkronisasi data lintas HP dan laptop</span></div>
+          <div><span class="feature-check">✓</span><span>Empat kasir dan empat antrean terpisah</span></div>
+          <div><span class="feature-check">✓</span><span>Ekspor CSV untuk Excel dan analisis DES</span></div>
+        </div>
+      </div>
+      <div class="panel login-card">
+        <p class="eyebrow">AKSES ANGGOTA</p>
+        <h2>Masuk ke workspace</h2>
+        <p class="muted small">Gunakan email dan password akun yang telah dibuat oleh admin proyek.</p>
+        <form id="login-form">
+          <div class="field"><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="username" required placeholder="nama@email.com"></div>
+          <div class="field"><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required placeholder="Masukkan password"></div>
+          <button class="btn btn-primary btn-full" id="login-button" type="submit">Masuk</button>
+          <p id="login-error" class="error-message" role="alert"></p>
+        </form>
+        <div class="login-footnote">Akun dibuat oleh admin melalui Supabase. Pendaftaran publik tidak diperlukan.</div>
+      </div>
+    </section>
+
+    <section id="app-screen" class="hidden">
+      <section class="hero">
+        <div><p class="eyebrow">PROJECT PEMODELAN & SIMULASI · DISCRETE EVENT SYSTEM</p><h1>Observasi antrean kasir</h1><p class="hero-copy">Catat pelanggan saat bergabung ke antrean, pilih kasir aktual, lalu tandai mulai dan selesai pelayanan. Durasi dihitung otomatis dan data tersinkron untuk anggota yang masuk.</p></div>
+        <div class="hero-mark" aria-hidden="true"><span>4</span><small>KASIR</small></div>
+      </section>
+
+      <div class="notice"><strong>Prosedur:</strong> sebelum pelanggan bergabung, catat panjang setiap antrean (pelanggan yang menunggu + yang sedang dilayani). Pilih kasir yang benar-benar dipilih pelanggan; jangan memaksakan aturan antrean terpendek pada catatan aktual.</div>
+
+      <section class="stats-grid">
+        <article class="stat-card"><div class="stat-label">Total pelanggan</div><div class="stat-value" id="stat-total">0</div><div class="stat-note">Target panduan: minimal 30</div></article>
+        <article class="stat-card"><div class="stat-label">Pelayanan selesai</div><div class="stat-value" id="stat-complete">0</div><div class="stat-note">Mulai dan selesai tercatat</div></article>
+        <article class="stat-card"><div class="stat-label">Rata-rata waktu tunggu</div><div class="stat-value stat-time" id="stat-wait">—</div><div class="stat-note">Dari pelanggan yang mulai dilayani</div></article>
+        <article class="stat-card"><div class="stat-label">Rata-rata pelayanan</div><div class="stat-value stat-time" id="stat-service">—</div><div class="stat-note">Dari pelayanan yang selesai</div></article>
+      </section>
+
+      <section class="workspace">
+        <article class="panel form-panel">
+          <div class="panel-heading"><div><p class="eyebrow">FORM OBSERVASI</p><h2>Catat kedatangan</h2></div><span class="step-chip">01 / 03</span></div>
+          <p class="muted small">Waktu kedatangan direkam ketika tombol ditekan. Jika pengamat terlambat mencatat, gunakan Edit untuk mengoreksi waktunya.</p>
+          <form id="arrival-form">
+            <div class="field"><label for="customer-number">Nomor customer berikutnya</label><input id="customer-number" value="otomatis dari database" readonly></div>
+            <div class="field"><label for="cashier-choice">Kasir yang dipilih pelanggan <span class="required">*</span></label><select id="cashier-choice" required><option value="">Pilih kasir…</option><option value="K1">Kasir 1 (K1)</option><option value="K2">Kasir 2 (K2)</option><option value="K3">Kasir 3 (K3)</option><option value="K4">Kasir 4 (K4)</option></select></div>
+            <div class="field-group-title"><h3>Panjang antrean saat memilih</h3><p class="muted small">Hitung yang menunggu + yang sedang dilayani, sebelum customer baru bergabung.</p></div>
+            <div class="queue-grid">
+              <div class="field"><label for="q-k1">Antrean K1</label><input id="q-k1" type="number" min="0" max="999" step="1" required placeholder="0"></div>
+              <div class="field"><label for="q-k2">Antrean K2</label><input id="q-k2" type="number" min="0" max="999" step="1" required placeholder="0"></div>
+              <div class="field"><label for="q-k3">Antrean K3</label><input id="q-k3" type="number" min="0" max="999" step="1" required placeholder="0"></div>
+              <div class="field"><label for="q-k4">Antrean K4</label><input id="q-k4" type="number" min="0" max="999" step="1" required placeholder="0"></div>
+            </div>
+            <div class="field"><label for="arrival-note">Catatan (opsional)</label><input id="arrival-note" maxlength="240" placeholder="Contoh: pelanggan pindah antrean"></div>
+            <button class="btn btn-primary btn-full" id="arrival-submit" type="submit">＋ Catat kedatangan sekarang</button>
+          </form>
+        </article>
+
+        <article class="panel active-panel">
+          <div class="panel-heading"><div><p class="eyebrow">PEMANTAUAN</p><h2>Proses pelayanan</h2></div><span class="live-chip"><span class="dot"></span> Database bersama</span></div>
+          <p class="muted small">Gunakan tombol pada customer yang sesuai ketika kasir mulai dan selesai melayani.</p>
+          <div class="workflow">
+            <div class="workflow-item"><div class="workflow-number">1</div><div><strong>Catat kedatangan</strong><span>Pilih kasir aktual dan isi snapshot empat antrean.</span></div></div>
+            <div class="workflow-item"><div class="workflow-number">2</div><div><strong>Mulai pelayanan</strong><span>Tekan tombol ketika kasir mulai memproses transaksi.</span></div></div>
+            <div class="workflow-item"><div class="workflow-number">3</div><div><strong>Selesaikan pelayanan</strong><span>Tekan tombol ketika transaksi selesai.</span></div></div>
+          </div>
+          <div class="divider"></div>
+          <div class="active-list-heading"><h3>Perlu ditindaklanjuti</h3><span class="count-pill" id="stat-pending">0</span></div>
+          <div id="pending-list" class="pending-list"><div class="empty-state compact"><strong>Memuat data…</strong></div></div>
+        </article>
+      </section>
+
+      <section class="panel data-panel">
+        <div class="panel-heading data-heading"><div><p class="eyebrow">DATA BERSAMA</p><h2>Daftar observasi</h2><p class="muted small">Perubahan dari perangkat anggota lain akan muncul otomatis jika Realtime diaktifkan.</p></div><div class="toolbar"><button class="btn btn-secondary" id="refresh-data" type="button">↻ Segarkan</button><button class="btn btn-secondary" id="export-csv" type="button">↓ Ekspor CSV</button><button class="btn btn-secondary" id="export-json" type="button">↓ Backup JSON</button></div></div>
+        <div class="table-tools"><div class="search-wrap"><span>⌕</span><input id="search-input" type="search" placeholder="Cari customer, kasir, atau catatan…"></div><select id="status-filter" aria-label="Filter status"><option value="all">Semua status</option><option value="waiting">Belum mulai</option><option value="serving">Sedang dilayani</option><option value="complete">Selesai</option></select><select id="cashier-filter" aria-label="Filter kasir"><option value="all">Semua kasir</option><option value="K1">K1</option><option value="K2">K2</option><option value="K3">K3</option><option value="K4">K4</option></select></div>
+        <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Kedatangan</th><th>Kasir</th><th>Antrean saat memilih<br><span>K1 · K2 · K3 · K4</span></th><th>Durasi tunggu</th><th>Mulai pelayanan</th><th>Selesai pelayanan</th><th>Durasi pelayanan</th><th>Status / tindakan</th></tr></thead><tbody id="records-body"><tr><td colspan="9" class="table-empty">Memuat data…</td></tr></tbody></table></div>
+        <div class="table-footer"><span id="visible-count">Memuat data…</span><button id="clear-all" class="btn btn-danger-ghost" type="button">Hapus semua data</button></div>
+      </section>
+      <div class="bottom-note"><strong>Catatan:</strong> data disimpan di database bersama. Ekspor CSV secara berkala sebagai backup. Jangan catat nama, nomor telepon, atau data pribadi pelanggan.</div>
+    </section>
+    <footer>DES Cashier · Alat bantu pengambilan data proyek Pemodelan & Simulasi</footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <dialog id="edit-dialog" class="edit-dialog"><form id="edit-form">
+    <div class="dialog-heading"><div><p class="eyebrow">KOREKSI DATA</p><h2>Edit customer #<span id="edit-customer-label"></span></h2></div><button type="button" class="icon-btn" id="close-edit" aria-label="Tutup">×</button></div>
+    <input type="hidden" id="edit-id">
+    <div class="field"><label for="edit-arrival">Waktu kedatangan</label><input id="edit-arrival" type="datetime-local" step="1" required></div>
+    <div class="field"><label for="edit-cashier">Kasir aktual</label><select id="edit-cashier" required><option value="K1">K1</option><option value="K2">K2</option><option value="K3">K3</option><option value="K4">K4</option></select></div>
+    <div class="queue-grid"><div class="field"><label for="edit-q-k1">Antrean K1</label><input id="edit-q-k1" type="number" min="0" step="1" required></div><div class="field"><label for="edit-q-k2">Antrean K2</label><input id="edit-q-k2" type="number" min="0" step="1" required></div><div class="field"><label for="edit-q-k3">Antrean K3</label><input id="edit-q-k3" type="number" min="0" step="1" required></div><div class="field"><label for="edit-q-k4">Antrean K4</label><input id="edit-q-k4" type="number" min="0" step="1" required></div></div>
+    <div class="field"><label for="edit-start">Waktu mulai pelayanan (kosong jika belum)</label><input id="edit-start" type="datetime-local" step="1"></div>
+    <div class="field"><label for="edit-finish">Waktu selesai pelayanan (kosong jika belum)</label><input id="edit-finish" type="datetime-local" step="1"></div>
+    <div class="field"><label for="edit-note">Catatan</label><input id="edit-note" maxlength="240"></div>
+    <div class="dialog-actions"><button class="btn btn-secondary" type="button" id="cancel-edit">Batal</button><button class="btn btn-primary" type="submit">Simpan koreksi</button></div>
+  </form></dialog>
+
+  <script src="/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
