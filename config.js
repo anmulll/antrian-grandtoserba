@@ -3,4 +3,4 @@
 // JANGAN PERNAH menggunakan service_role key atau secret key di frontend.
 window.DES_SUPABASE_URL = "sb_publishable_e4ION14WaqjFlexlTN8HFw_FXRIe4AV";
 window.DES_SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15c29ncHdudWdnbGJremVrcWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1NjExNzgsImV4cCI6MjEwODEzNzE3OH0.L0EP5Id27LPFB6r8ioXcqgQkyPQcFB3hV5KIdumcBzc";
+  "sb_publishable_e4ION14WaqjFlexlTN8HFw_FXRIe4AV";
